@@ -65,31 +65,37 @@ viewStateEncoded=$(php -r "echo urlencode(\"$viewState\");")
 ELENCO="$(cat $tempdir/elenco.txt)";
 for i in $ELENCO
 do
-	
-	data="'ctl00%24MainContent%24ddlReport=7&ctl00%24MainContent%24ddlEvent=$i&ctl00%24MainContent%24btGenerate=Genera&ctl00%24MainContent%24theReportViewer%24ctl03%24ctl00=&ctl00%24MainContent%24theReportViewer%24ctl03%24ctl01=&ctl00%24MainContent%24theReportViewer%24ctl10=ltr&ctl00%24MainContent%24theReportViewer%24ctl11=standards&ctl00%24MainContent%24theReportViewer%24AsyncWait%24HiddenCancelField=False&ctl00%24MainContent%24theReportViewer%24ToggleParam%24store=&ctl00%24MainContent%24theReportViewer%24ToggleParam%24collapse=false&ctl00%24MainContent%24theReportViewer%24ctl05%24ctl00%24CurrentPage=1&ctl00%24MainContent%24theReportViewer%24ctl05%24ctl03%24ctl00=&ctl00%24MainContent%24theReportViewer%24ctl08%24ClientClickedId=&ctl00%24MainContent%24theReportViewer%24ctl07%24store=&ctl00%24MainContent%24theReportViewer%24ctl07%24collapse=false&ctl00%24MainContent%24theReportViewer%24ctl09%24VisibilityState%24ctl00=ReportPage&ctl00%24MainContent%24theReportViewer%24ctl09%24ScrollPosition=&ctl00%24MainContent%24theReportViewer%24ctl09%24ReportControl%24ctl02=&ctl00%24MainContent%24theReportViewer%24ctl09%24ReportControl%24ctl03=&ctl00%24MainContent%24theReportViewer%24ctl09%24ReportControl%24ctl04=100"
-	data2="$data&__EVENTTARGET=&__EVENTARGUMENT=&__SCROLLPOSITIONX=0&__SCROLLPOSITIONY=0"
-	data3="$data2&__VIEWSTATE=$viewStateEncoded&__EVENTVALIDATION=$eventValidationEncoded"
-	
-	curl -H "Origin: $urlbase" -H 'Host: buonacaccia.net' -H 'Content-Type: application/x-www-form-urlencoded' -H "Referer: $urlbase/utenti/EventReports.aspx" --data "$data3" --cookie $CookieFileName --cookie-jar $CookieFileName --write-out %{http_code} --output /dev/null $url_report $debug > $tempdir/code.txt   
 
-	status=$(cat $tempdir/code.txt)
-	if [ "302" != "$status" ]
-	then
-			echo "RESPONSE KO READ DATA FASE 1 - $status"
-	        exit 2
+	if [ ! -f data$i.csv ]; then
+    
+		data="'ctl00%24MainContent%24ddlReport=7&ctl00%24MainContent%24ddlEvent=$i&ctl00%24MainContent%24btGenerate=Genera&ctl00%24MainContent%24theReportViewer%24ctl03%24ctl00=&ctl00%24MainContent%24theReportViewer%24ctl03%24ctl01=&ctl00%24MainContent%24theReportViewer%24ctl10=ltr&ctl00%24MainContent%24theReportViewer%24ctl11=standards&ctl00%24MainContent%24theReportViewer%24AsyncWait%24HiddenCancelField=False&ctl00%24MainContent%24theReportViewer%24ToggleParam%24store=&ctl00%24MainContent%24theReportViewer%24ToggleParam%24collapse=false&ctl00%24MainContent%24theReportViewer%24ctl05%24ctl00%24CurrentPage=1&ctl00%24MainContent%24theReportViewer%24ctl05%24ctl03%24ctl00=&ctl00%24MainContent%24theReportViewer%24ctl08%24ClientClickedId=&ctl00%24MainContent%24theReportViewer%24ctl07%24store=&ctl00%24MainContent%24theReportViewer%24ctl07%24collapse=false&ctl00%24MainContent%24theReportViewer%24ctl09%24VisibilityState%24ctl00=ReportPage&ctl00%24MainContent%24theReportViewer%24ctl09%24ScrollPosition=&ctl00%24MainContent%24theReportViewer%24ctl09%24ReportControl%24ctl02=&ctl00%24MainContent%24theReportViewer%24ctl09%24ReportControl%24ctl03=&ctl00%24MainContent%24theReportViewer%24ctl09%24ReportControl%24ctl04=100"
+		data2="$data&__EVENTTARGET=&__EVENTARGUMENT=&__SCROLLPOSITIONX=0&__SCROLLPOSITIONY=0"
+		data3="$data2&__VIEWSTATE=$viewStateEncoded&__EVENTVALIDATION=$eventValidationEncoded"
+		
+		curl -H "Origin: $urlbase" -H 'Host: buonacaccia.net' -H 'Content-Type: application/x-www-form-urlencoded' -H "Referer: $urlbase/utenti/EventReports.aspx" --data "$data3" --cookie $CookieFileName --cookie-jar $CookieFileName --write-out %{http_code} --output /dev/null $url_report $debug > $tempdir/code.txt   
+
+		status=$(cat $tempdir/code.txt)
+		if [ "302" != "$status" ]
+		then
+				echo "RESPONSE KO READ DATA FASE 1 - $status"
+		        exit 2
+		fi
+
+		url_evento="$urlbase/utenti/ExportCSV.ashx?t=EVT&e=$i"
+
+		curl -H 'Host: buonacaccia.net' -H "Referer: $urlbase/utenti/EventReports.aspx" --cookie $CookieFileName --cookie-jar $CookieFileName --write-out %{http_code} --output $tempdir/dati$i.csv $url_evento $debug > $tempdir/code.txt
+		status=$(cat $tempdir/code.txt)
+		if [ "200" != "$status" ]
+		then
+				echo "RESPONSE KO READ DATA FASE 2 - $status"
+		        exit 2
+		fi
+
+		cat $tempdir/dati$i.csv | dos2unix > data$i.csv
+
+		sleep 3
+
 	fi
-
-	url_evento="$urlbase/utenti/ExportCSV.ashx?t=EVT&e=$i"
-
-	curl -H 'Host: buonacaccia.net' -H "Referer: $urlbase/utenti/EventReports.aspx" --cookie $CookieFileName --cookie-jar $CookieFileName --write-out %{http_code} --output $tempdir/dati$i.csv $url_evento $debug > $tempdir/code.txt
-	status=$(cat $tempdir/code.txt)
-	if [ "200" != "$status" ]
-	then
-			echo "RESPONSE KO READ DATA FASE 2 - $status"
-	        exit 2
-	fi
-
-	cat $tempdir/dati$i.csv | dos2unix > data$i.csv
 
 done
 
